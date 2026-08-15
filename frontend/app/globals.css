@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* University of Vermont: green primary, gold secondary, on white. */
+:root {
+  --uvm-green: #00693e;
+  --uvm-green-dark: #004f2f;
+  --uvm-gold: #ffb81c;
+  --ink: #0a0a0a;
+}
+
+html,
+body,
+#__next {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+/* Neo-brutalist primitives: hard edges, no blur, offset shadows. */
+.nb {
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+.nb-thin {
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.nb-press {
+  transition: transform 80ms linear, box-shadow 80ms linear;
+}
+.nb-press:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.nb-press:active {
+  transform: translate(5px, 5px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+/* MapLibre chrome, squared off to match. */
+.maplibregl-ctrl-group {
+  border: 3px solid var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 var(--ink) !important;
+}
+.maplibregl-ctrl-group button {
+  border-radius: 0 !important;
+}
+.maplibregl-ctrl-scale {
+  border: 2px solid var(--ink) !important;
+  border-top: none !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: var(--ink) !important;
+  font-weight: 600;
+}
+.maplibregl-popup-content {
+  border: 3px solid var(--ink);
+  border-radius: 0;
+  box-shadow: 5px 5px 0 var(--ink);
+}
