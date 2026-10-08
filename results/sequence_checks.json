@@ -66,6 +66,56 @@
       ]
     ]
   },
+  "plaque_examples": {
+    "family": "M3",
+    "signs": [
+      {
+        "sign_id": "M3-2_44.245802889154135_-72.54994575641996",
+        "class": "M3-2",
+        "views": 6,
+        "first_frame": "13000000041064",
+        "first_box_px": [
+          18,
+          8
+        ],
+        "largest_frame": "13000000066065",
+        "largest_box_px": [
+          97,
+          51
+        ]
+      },
+      {
+        "sign_id": "M3-2_44.24627655986057_-72.54923198151336",
+        "class": "M3-2",
+        "views": 4,
+        "first_frame": "13000002361382",
+        "first_box_px": [
+          26,
+          14
+        ],
+        "largest_frame": "13000002376342",
+        "largest_box_px": [
+          72,
+          28
+        ]
+      },
+      {
+        "sign_id": "M3-4_44.24694087274204_-72.5496221142037",
+        "class": "M3-4",
+        "views": 3,
+        "first_frame": "13000000091570",
+        "first_box_px": [
+          35,
+          22
+        ],
+        "largest_frame": "13000000101530",
+        "largest_box_px": [
+          123,
+          54
+        ]
+      }
+    ]
+  },
   "versions": {
     "python": "3.13.9",
     "ultralytics": "8.4.120",

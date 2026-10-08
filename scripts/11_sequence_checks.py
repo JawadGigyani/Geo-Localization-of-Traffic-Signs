@@ -12,12 +12,17 @@
 #      part across it (direction), using the stored constants
 #   5. which ground-truth ids collapse into one post (same class within CANON_M)
 #      and whether duplicate ids always appear in the same photos
+#   6. every sign of one look-alike family (default M3) with the ARTSv2 frame names
+#      of its first and largest view, so the plaques can be looked up in the
+#      dataset itself (Annotations/<frame>.xml, JPEGImages/<frame>.jpg) without
+#      this repository redistributing any imagery
 #
 # Runs on a CPU in a few minutes. Nothing is written to the database.
 #
 # Env:
 #   SEQUENCE_DIR=data/demo_sequence   WEIGHTS_PATH   CLS_WEIGHTS   CLS_MIN_CONF (0.8)
 #   CONF (0.25)   CANON_M (2.0)   CALIBRATION_PATH   RESULTS_DIR=results
+#   PLAQUE_FAMILY (M3)
 
 import os
 import sys
@@ -45,6 +50,7 @@ CONF = float(os.environ.get("CONF", "0.25"))
 CANON_M = float(os.environ.get("CANON_M", "2.0"))
 CALIBRATION_PATH = os.environ.get("CALIBRATION_PATH", str(ROOT / "weights" / "calibration.json"))
 RESULTS_DIR = Path(os.environ.get("RESULTS_DIR", ROOT / "results"))
+PLAQUE_FAMILY = os.environ.get("PLAQUE_FAMILY", "M3")
 
 frames = pipeline_core.list_frames(str(SEQUENCE_DIR))
 meta = pipeline_core.load_frames_meta(str(SEQUENCE_DIR))
@@ -164,6 +170,27 @@ gm = report["ground_truth_merges"]
 print(f"5. {gm['ids']} ids -> {gm['posts']} posts; {gm['merged_ids']} merged ids, "
       f"max distance {gm['max_merge_distance_m']} m, "
       f"{gm['merged_ids_in_same_photos_as_their_post']} appear in exactly the same photos")
+
+# ------------------------------------------------------------ 6. look-alike plaques
+views = defaultdict(list)
+for stem, m in meta.items():
+    frame = stem.split("__")[-1]          # the ARTSv2 file name, without the tile prefix
+    for o in m.get("objects", []):
+        if pipeline_core.family_of(o["name"]) == PLAQUE_FAMILY and o.get("sign_id"):
+            x1, y1, x2, y2 = o["bbox"]
+            views[str(o["sign_id"])].append((frame, o["name"], [round(x2 - x1), round(y2 - y1)]))
+plaques = []
+for gid, seen in sorted(views.items()):
+    seen.sort()                           # ARTSv2 frame names are in driving order
+    largest = max(seen, key=lambda v: v[2][0] * v[2][1])
+    plaques.append({"sign_id": gid, "class": seen[0][1], "views": len(seen),
+                    "first_frame": seen[0][0], "first_box_px": seen[0][2],
+                    "largest_frame": largest[0], "largest_box_px": largest[2]})
+report["plaque_examples"] = {"family": PLAQUE_FAMILY, "signs": plaques}
+for p in plaques:
+    print(f"6. {p['class']:7s} first view {p['first_frame']} "
+          f"{p['first_box_px'][0]}x{p['first_box_px'][1]} px, "
+          f"largest {p['largest_frame']} {p['largest_box_px'][0]}x{p['largest_box_px'][1]} px")
 
 report["versions"] = {"python": platform.python_version()}
 for name in ("ultralytics", "torch"):

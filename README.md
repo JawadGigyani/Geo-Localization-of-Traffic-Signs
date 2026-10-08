@@ -497,7 +497,9 @@ The evaluation scripts accept a few more as one-off overrides, listed in
 │   ├── 09a_gps_error_report.py     position error computed inside PostGIS
 │   ├── 09c_privacy_blur.py         blurs people in crops (plates/faces need another model)
 │   ├── 10_screenshots.py           regenerates the images above
-│   └── 11_sequence_checks.py       tracker baselines, photo spacing, single-sequence fit
+│   ├── 11_sequence_checks.py       tracker baselines, photo spacing, single-sequence fit
+│   ├── 12_training_logs.py         per-epoch training logs, read from the weights
+│   └── 13_report_figures.py        report figures, percent changes, bootstrap intervals
 ├── pipeline_core.py                detection, projection, clustering, scoring
 ├── backend/main.py                 FastAPI service
 ├── frontend/                       Next.js + MapLibre dashboard
@@ -506,8 +508,15 @@ The evaluation scripts accept a few more as one-off overrides, listed in
 ├── tests/                          unit tests, no dataset needed
 ├── data/                           created locally: dataset, photographs, caches (not in git)
 ├── docs/screenshots/
+├── report/                         the write-up and its number checker
 └── LICENSE                         AGPL-3.0
 ```
+
+The write-up is [`report/signatlas_report.tex`](report/signatlas_report.tex).
+`report/check_numbers.py` checks every number in it against the files in this
+repository. Run it with `.venv/Scripts/python.exe`. Rebuild the PDF with
+`pdflatex` from `report/`; the PDF and the LaTeX build files are gitignored.
+The figures it includes are `results/figures/`.
 
 ---
 
@@ -612,6 +621,10 @@ CLS_WEIGHTS=none .venv/Scripts/python.exe scripts/07_batch_evaluate.py
 
 # 4. tracker baselines and other checks on the demo sequence
 .venv/Scripts/python.exe scripts/11_sequence_checks.py
+
+# 5. training logs from the weights, and figures from the files above (no dataset)
+.venv/Scripts/python.exe scripts/12_training_logs.py
+.venv/Scripts/python.exe scripts/13_report_figures.py
 ```
 
 Each script writes into tracked files, so `git diff` shows at once whether a run
@@ -626,7 +639,10 @@ matches the committed one:
 | `results/batch_evaluation_stage2.json` | `07_batch_evaluate.py` | pipeline metrics with the crop classifier |
 | `results/batch_evaluation_stage1.json` | `07_batch_evaluate.py` with `CLS_WEIGHTS=none` | the same without it |
 | `weights/calibration.json` | `07_batch_evaluate.py` | fitted field of view, width-to-range constant, radius |
-| `results/sequence_checks.json` | `11_sequence_checks.py` | photo spacing, tracker baselines, single-sequence fit, error along and across the line of sight, merged ids |
+| `results/sequence_checks.json` | `11_sequence_checks.py` | photo spacing, tracker baselines, single-sequence fit, error along and across the line of sight, merged ids, ARTSv2 frame names of the M3 plaques |
+| `results/detector_training_log.csv`, `results/classifier_training_log.csv` | `12_training_logs.py` | one row per training epoch, with the training session it ran in |
+| `results/training_summary.json` | `12_training_logs.py` | epochs, sessions and resumes, best epoch, early stopping |
+| `results/derived_numbers.json`, `results/figures/*.png` | `13_report_figures.py` | percent changes, sequence-level bootstrap intervals, report figures |
 
 `model_metrics.json`, both `batch_evaluation_*.json` files and
 `sequence_checks.json` also record the Python, Ultralytics and PyTorch versions
@@ -646,7 +662,7 @@ they were produced with. Expected values:
 
 The committed metric files come from a run of notebook 02 on a Colab T4;
 `sequence_checks.json` came from a local CPU run, and cell D3 on the T4 gave
-identical values. Small differences from another run are expected, from
+identical values (its committed output predates the `plaque_examples` section). Small differences from another run are expected, from
 re-encoding JPEGs with a different Pillow version (when the dataset is converted
 locally) and from CPU versus GPU arithmetic. Notebook 02
 (cell E1) checks each value against a tolerance: 0.01 for mAP and accuracy

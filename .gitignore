@@ -51,6 +51,18 @@ repo_for_drive.zip
 *.zip
 *.tar.gz
 
+# LaTeX build output. The write-up source is report/signatlas_report.tex.
+# Its two figures are results/figures/, written by scripts/13_report_figures.py.
+*.aux
+*.out
+*.tex
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+report/figures/
+
 # --- superseded / not needed to run the project --------------------------
 # Kept on disk for reference, kept out of the repo so a fresh clone contains
 # only what is required to reproduce the pipeline end to end.
@@ -77,3 +89,5 @@ Thumbs.db
 desktop.ini
 *.swp
 *.log
+
+report/check_numbers.py

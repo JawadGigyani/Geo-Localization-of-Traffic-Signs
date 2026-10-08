@@ -1,0 +1,47 @@
+{
+  "fragmented_change_pct": -46.7,
+  "merged_change_pct": -22.9,
+  "rows_stage1": 342,
+  "lookalike_error_stage1_pct": 21.3,
+  "lookalike_error_stage2_pct": 5.7,
+  "lookalike_error_change_pct": -73.4,
+  "all_error_change_pct": -63.9,
+  "geo_improvement_pct": 55.7,
+  "never_found": 45,
+  "rows_scored_for_error": 249,
+  "calibration_frames": 462,
+  "evaluation_frames": 646,
+  "largest_sequence": "seq_8852_-14516",
+  "largest_sequence_posts": 108,
+  "largest_sequence_posts_share_pct": 29.5,
+  "largest_sequence_merged": 23,
+  "largest_sequence_merged_share_pct": 42.6,
+  "largest_sequence_dedupe": 0.6064,
+  "dedupe_min": 0.25,
+  "dedupe_max": 1.0,
+  "bootstrap_stage2": {
+    "recall_ci": [
+      0.829,
+      0.92
+    ],
+    "dedupe_ci": [
+      0.626,
+      0.766
+    ]
+  },
+  "bootstrap_stage1": {
+    "recall_ci": [
+      0.829,
+      0.92
+    ],
+    "dedupe_ci": [
+      0.376,
+      0.606
+    ]
+  },
+  "bootstrap_settings": {
+    "resamples": 10000,
+    "seed": 0,
+    "unit": "sequence"
+  }
+}

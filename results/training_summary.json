@@ -1,0 +1,55 @@
+{
+  "detector": {
+    "weights": "weights/best.pt",
+    "log": "results/detector_training_log.csv",
+    "task": "detect",
+    "epochs_configured": 40,
+    "epochs_trained": 40,
+    "imgsz": 1280,
+    "batch": 8,
+    "sessions": 6,
+    "resumes": 5,
+    "resumed_at_epochs": [
+      18,
+      28,
+      33,
+      37,
+      40
+    ],
+    "best_epoch": 30,
+    "best_fitness": 0.52819,
+    "best_metrics": {
+      "metrics/precision(B)": 0.72427,
+      "metrics/recall(B)": 0.71034,
+      "metrics/mAP50(B)": 0.744,
+      "metrics/mAP50-95(B)": 0.52819
+    },
+    "patience": 12,
+    "early_stopping_triggered": false
+  },
+  "classifier": {
+    "weights": "weights/crop_classifier.pt",
+    "log": "results/classifier_training_log.csv",
+    "task": "classify",
+    "epochs_configured": 40,
+    "epochs_trained": 36,
+    "imgsz": 96,
+    "batch": 128,
+    "sessions": 1,
+    "resumes": 0,
+    "resumed_at_epochs": [],
+    "best_epoch": 26,
+    "best_fitness": 0.98297,
+    "best_metrics": {
+      "metrics/accuracy_top1": 0.96641,
+      "metrics/accuracy_top5": 0.99954
+    },
+    "patience": 10,
+    "early_stopping_triggered": true
+  },
+  "versions": {
+    "python": "3.13.9",
+    "torch": "2.11.0+cpu",
+    "ultralytics": "8.4.120"
+  }
+}
