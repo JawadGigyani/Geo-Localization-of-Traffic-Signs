@@ -449,8 +449,7 @@ The evaluation scripts accept a few more as one-off overrides, listed in
 ```
 ├── notebooks/
 │   ├── 01_train_yolo_colab.ipynb             Colab notebook, phases A–G (no outputs)
-│   ├── 01_train_yolo_colab_RUN.ipynb         executed: data audit, training, test mAP
-│   ├── 01_train_yolo_colab_G1_G2_RUN.ipynb   executed: adds sequence export, crop classifier
+│   ├── 01_train_yolo_colab_G1_G2_RUN.ipynb   executed: data audit, training, test mAP, sequences, crop classifier
 │   └── 02_reproduce_on_colab.ipynb           regenerates every score on Colab, from the weights
 ├── scripts/
 │   ├── 00_preflight.py             checks packages, models, constants, data, database
@@ -509,8 +508,8 @@ the exact XML fields, are in
 
 Both models train on a free Colab T4 using
 [`notebooks/01_train_yolo_colab.ipynb`](notebooks/01_train_yolo_colab.ipynb),
-phases A–G. The two `_RUN` notebooks are executed copies that hold the training
-and test outputs quoted in this README.
+phases A–G. [`01_train_yolo_colab_G1_G2_RUN.ipynb`](notebooks/01_train_yolo_colab_G1_G2_RUN.ipynb)
+is the executed copy that holds the training and test outputs quoted in this README.
 
 | | Detector | Crop classifier |
 |---|---|---|

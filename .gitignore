@@ -15,7 +15,6 @@ data/*
 # The two trained models ARE tracked: 5.6 MB + 3.3 MB, small enough for git and
 # they make the repository runnable without a 9-hour training run.
 weights/*
-!weights/.gitkeep
 !weights/classes.txt
 !weights/best.pt
 !weights/crop_classifier.pt
