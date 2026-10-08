@@ -1,0 +1,23 @@
+{
+  "canon_m": 2.0,
+  "ids": {
+    "test": 1136,
+    "train": 4051,
+    "val": 819
+  },
+  "posts": {
+    "test": 986,
+    "train": 3554,
+    "val": 758
+  },
+  "ids_shared": {
+    "train_val": 0,
+    "train_test": 0,
+    "val_test": 0
+  },
+  "posts_shared": {
+    "train_val": 0,
+    "train_test": 1,
+    "val_test": 0
+  }
+}
