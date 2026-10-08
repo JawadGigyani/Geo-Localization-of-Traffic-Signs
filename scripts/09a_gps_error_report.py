@@ -33,7 +33,7 @@ if not rows:
     raise SystemExit(
         "Nothing to report.\n"
         "Rows need sign_lat/sign_lon, which come from frames_meta.json produced by\n"
-        "scripts/02_convert_arts_to_yolo.py. If your dataset has no per-sign GPS,\n"
+        "scripts/02_convert_arts_to_yolo.py. If the dataset has no per-sign GPS,\n"
         "this metric is not available."
     )
 

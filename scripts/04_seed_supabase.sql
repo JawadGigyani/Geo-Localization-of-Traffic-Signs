@@ -2,7 +2,7 @@
 -- Run in: Supabase Dashboard -> SQL Editor
 -- Then create Storage buckets: sign-crops, sign-frames (public read for the demo)
 --
--- Safe to re-run. If you already ran the older version of this file, the
+-- Safe to re-run. On a database created by an older version of this file, the
 -- ALTER TABLE statements below will add the new columns in place.
 
 create extension if not exists postgis;
@@ -16,7 +16,8 @@ create table if not exists traffic_signs (
   image_crop_url text,
   full_frame_url text,
   source_sequence text,
-  -- vehicle / camera GPS: the map pin
+  -- the map pin: the estimated SIGN position (gps_source 'geo_projected'), or
+  -- the camera's GPS for rows written by the tracker baseline
   geom geography(Point, 4326) not null,
   -- where that coordinate came from. 'none' rows are never inserted; the UI
   -- shows a warning badge for anything that is not a real fix.

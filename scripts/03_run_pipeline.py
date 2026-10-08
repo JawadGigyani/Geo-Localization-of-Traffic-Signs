@@ -8,6 +8,15 @@
 #   SKIP_UPLOAD=1                        dry run, no Supabase writes
 #   ALLOW_SYNTHETIC_GPS=1                demo only: place GPS-less signs on a fake
 #                                        Burlington point, tagged as synthetic
+#   ASSOCIATION=tracker                  run the BoT-SORT baseline instead
+#   TRACKER=bytetrack.yaml               ...or the ByteTrack baseline
+#   HFOV_DEG / SIZE_K / RADIUS_M         override weights/calibration.json
+#   CALIBRATE=1                          refit the camera constants on THIS folder's
+#                                        ground truth (in-sample; off by default)
+#
+# The camera constants come from weights/calibration.json, which
+# scripts/07_batch_evaluate.py fits on held-out calibration sequences, so the
+# pipeline needs no ground truth to run on new photos.
 #
 # All real work lives in pipeline_core.py, which the API imports too.
 
@@ -35,10 +44,9 @@ TRACKER = os.environ.get("TRACKER", "botsort.yaml")
 # "geometric" projects each detection onto the map and clusters there -- the
 # only thing that works at 1 Hz. "tracker" is the BoT-SORT baseline.
 ASSOCIATION = os.environ.get("ASSOCIATION", "geometric").strip().lower()
-HFOV = float(os.environ.get("HFOV_DEG", "60"))
-SIZE_K = float(os.environ.get("SIZE_K", "0.7"))
-RADIUS_M = float(os.environ.get("RADIUS_M", "60"))
-CALIBRATE = os.environ.get("CALIBRATE", "1") == "1"
+CALIBRATION_PATH = os.environ.get("CALIBRATION_PATH", str(ROOT / "weights" / "calibration.json"))
+HFOV, SIZE_K, RADIUS_M, GEOMETRY_SOURCE = pipeline_core.geometry_settings(CALIBRATION_PATH)
+CALIBRATE = os.environ.get("CALIBRATE", "0") == "1"
 
 # Optional second stage: re-reads each crop to pick the right variant within the
 # family the detector chose. Set CLS_WEIGHTS=none to disable.
@@ -73,9 +81,14 @@ print("ASSOCIATION  =", ASSOCIATION)
 if ASSOCIATION == "tracker":
     # Baseline. Fails on 1 Hz imagery: the camera moves ~8 m between frames, so
     # IoU-based association never confirms a track. Kept for comparison.
+    # A second copy of the detector counts every box, tracked or not.
+    stats = {}
     tracks = pipeline_core.run_tracking(
-        model, frames, tracker=TRACKER, conf=CONF, meta=meta, imgsz=IMGSZ
+        model, frames, tracker=TRACKER, conf=CONF, meta=meta, imgsz=IMGSZ,
+        stats=stats, count_model=YOLO(WEIGHTS_PATH),
     )
+    print(f"Tracker {TRACKER}: {stats['with_id']} of {stats['detections']} "
+          f"detections were given an identity")
 else:
     cls_model, families = None, None
     if CLS_WEIGHTS.lower() != "none" and os.path.isfile(CLS_WEIGHTS):
@@ -96,15 +109,18 @@ else:
               f"({100*changed/max(1,len(dets)):.1f}%)")
 
     hfov, size_k = HFOV, SIZE_K
+    print(f"Geometry: hfov={hfov:.0f} deg  size_k={size_k:.3f} m  radius={RADIUS_M:.0f} m  "
+          f"(from {GEOMETRY_SOURCE})")
     if CALIBRATE:
+        # In-sample: fits on the same folder it then scores. Useful to compare
+        # cameras, never for reporting results.
         fit_hfov, fit_k, n = pipeline_core.calibrate_geometry(dets)
         if fit_hfov:
             hfov, size_k = fit_hfov, fit_k
-            print(f"Calibrated on {n} ground-truth matches: "
-                  f"hfov={hfov:.0f} deg  size_k={size_k:.3f} m")
+            print(f"CALIBRATE=1: refitted on this folder's {n} ground-truth matches: "
+                  f"hfov={hfov:.0f} deg  size_k={size_k:.3f} m (in-sample)")
         else:
-            print(f"Too few ground-truth matches ({n}) to calibrate; "
-                  f"using hfov={hfov} size_k={size_k}")
+            print(f"CALIBRATE=1 but only {n} ground-truth matches; keeping the stored constants")
 
     tracks = pipeline_core.associate_geometric(
         dets, hfov_deg=hfov, size_k=size_k, radius_m=RADIUS_M
@@ -129,7 +145,7 @@ seq_name = os.path.basename(os.path.abspath(SEQUENCE_DIR))
 out_crops = ROOT / "data" / "pipeline_crops"
 pipeline_core.save_crops(tracks, str(out_crops), seq_name)
 
-# Always write a local record, so you have results even without Supabase.
+# Always write a local record, so results exist even without Supabase.
 report = []
 for tid, info in tracks.items():
     report.append({k: v for k, v in info.items() if k != "crop"})

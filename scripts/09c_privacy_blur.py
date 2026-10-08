@@ -3,8 +3,8 @@
 #   python scripts/09c_privacy_blur.py
 #
 # IMPORTANT: a COCO-pretrained YOLO has no 'license plate' or 'face' class. It
-# only knows 'person'. Blurring 'person' is NOT plate anonymisation, so this
-# script refuses to pretend otherwise -- it tells you exactly what it did.
+# only knows 'person'. Blurring 'person' is not plate anonymisation, so the
+# script reports exactly which categories it covered.
 #
 # To do this properly, point WEIGHTS_PRIVACY at a plate/face detector, e.g. a
 # YOLO model fine-tuned on an open plate dataset, then set PRIVACY_CLASSES to
@@ -61,8 +61,8 @@ if not covers_plates or not covers_faces:
     print("! LIMITED ANONYMISATION")
     print(f"!   license plates covered: {covers_plates}")
     print(f"!   faces covered:          {covers_faces}")
-    print("! This model cannot detect the missing categories. Do NOT describe the")
-    print("! output as fully anonymised. Use a plate/face detector for real use.")
+    print("! This model cannot detect the missing categories, so the output is not")
+    print("! fully anonymised. Use a plate/face detector for real use.")
     print("!" * 68 + "\n")
 
 paths = sorted(p for p in INPUT_DIR.iterdir()

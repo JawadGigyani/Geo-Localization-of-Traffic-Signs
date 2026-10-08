@@ -15,26 +15,26 @@ VaiL group at the University of Vermont.
   apart and show the same physical signs repeatedly. **This is why the split must
   be by sequence.**
 
-## Links — VERIFIED 13 Aug 2026
+## Links (checked 13 Aug 2026)
 
-| Source | URL | What is actually there |
+| Source | URL | Contents |
 |---|---|---|
 | VaiL datasets page | https://www.wshahaigroup.com/datasets | "Dataset here" button → the v1 Drive below |
-| **ARTS v1** Drive | https://drive.google.com/drive/folders/1bMWnDfAOuaRf2WEb4YfQGbkB00hbVfbj | `ARTS-V1/` with `Easy/easy-dev.tar.gz` (4.35 GB) and `Challenging/challenging-dev.tar.gz` (7.61 GB), plus the MUTCD manual and the VCI Sign Catalog PDFs. **No GPS confirmed, and no Video-Logs folder despite the website text.** |
-| **ARTSv2** Drive (from the 2022 paper) | https://drive.google.com/drive/folders/1u_nx38M0_owB0cR-qA6IOWgZhGpb9sWU | Folder `challenging_dom/` in ready-to-use PASCAL VOC layout: `Annotations/`, `JPEGImages/`, `ImageSets/Main/`. **This is the one to use** — the XML carries camera GPS, per-sign GPS, heading, and a stable sign id. |
+| **ARTS v1** Drive | https://drive.google.com/drive/folders/1bMWnDfAOuaRf2WEb4YfQGbkB00hbVfbj | `ARTS-V1/` with `Easy/easy-dev.tar.gz` (4.35 GB) and `Challenging/challenging-dev.tar.gz` (7.61 GB), plus the MUTCD manual and the VCI Sign Catalog PDFs. No GPS fields, and no Video-Logs folder. |
+| **ARTSv2** Drive (from the 2022 paper) | https://drive.google.com/drive/folders/1u_nx38M0_owB0cR-qA6IOWgZhGpb9sWU | Folder `challenging_dom/` in ready-to-use PASCAL VOC layout: `Annotations/`, `JPEGImages/`, `ImageSets/Main/`. This is the version used here: the XML carries camera GPS, per-sign GPS, heading, and a stable sign id. |
 | Paper | https://doi.org/10.3390/rs14112575 | |
 | Related code | https://gitlab.com/vail-uvm/VTrans-AI | |
 
-**Use the ARTSv2 link, not the one on the website.** The website's button leads
-to v1, which ships as multi-GB tarballs and lacks the geospatial fields the
-whole inventory half of this project depends on. ARTSv2 is already unpacked into
-individual files, so a Drive shortcut works without any download.
+The website's download button leads to v1, which ships as multi-GB tarballs and
+lacks the geospatial fields the inventory half of this project depends on, so the
+ARTSv2 link above is the one to use. ARTSv2 is already unpacked into individual
+files, so a Drive shortcut works without any download.
 
 `ImageSets/Main/` holds VOC-style per-class split lists (`D1-1_train.txt`,
-`_val`, `_test`, `_trainval`). Our converter builds its own geographically
-disjoint split instead — see below for why.
+`_val`, `_test`, `_trainval`). The converter builds its own geographically
+disjoint split instead (see below).
 
-License is research/non-commercial — fine for a portfolio, but say so.
+The dataset is licensed for research, non-commercial use.
 
 ## Target Drive layout
 
@@ -48,9 +48,9 @@ MyDrive/traffic-sign-inventory/
   export/               best.pt, classes.txt, demo_sequence.zip
 ```
 
-## The real annotation format (confirmed, not assumed)
+## Annotation format
 
-A genuine ARTSv2 annotation file, read directly from the Drive folder:
+A sample ARTSv2 annotation file:
 
 ```xml
 <annotation>
@@ -78,7 +78,7 @@ A genuine ARTSv2 annotation file, read directly from the Drive folder:
 </annotation>
 ```
 
-Four things this tells us, all of which shaped the code:
+Four properties of this format shaped the code:
 
 1. **GPS is nested two levels deep**, and the camera's `<Latitude>` has the same
    lowercased name as each sign's `<latitude>`. Any flat scan of the XML would
@@ -90,9 +90,9 @@ Four things this tells us, all of which shaped the code:
    lat/lon), so the same signpost keeps one id across every frame it appears in.
    That is what makes the dedupe metric and the leakage guard possible.
 4. **The signs are tiny.** That example box is 117 × 18 px inside a 1920 × 1080
-   frame. Do not downscale the images, and do not train at `imgsz=640`.
+   frame, so the images are never downscaled and training does not use `imgsz=640`.
 
-## You do not need to guess the field names
+## Field-name detection
 
 The converter **auto-detects** the XML tag names by sampling 200 annotation
 files and reports what it resolved:
@@ -107,8 +107,8 @@ resolved mapping (VERIFY THIS against one real XML):
   sign_id      -> ...
 ```
 
-Notebook cell **A5** prints one complete XML so you can check that mapping with
-your own eyes. Do that once, before converting.
+Notebook cell **A5** prints one complete XML file, so the mapping can be checked
+once before converting.
 
 If a field is missing from the mapping, add its real name to the `HINTS`
 dictionary at the top of [02_convert_arts_to_yolo.py](02_convert_arts_to_yolo.py).
@@ -121,7 +121,7 @@ dictionary at the top of [02_convert_arts_to_yolo.py](02_convert_arts_to_yolo.py
 | `object/name` | class label | the object is skipped |
 | `object/bndbox` | the box | the object is skipped |
 | camera lat/lon | the map pin | no coordinates; the map stays empty |
-| camera heading | depth projection (`09b`) | derived from the GPS trail instead |
+| camera heading | projecting each box onto the map (`pipeline_core.py`) | the sign cannot be placed and the detection is dropped |
 | sign lat/lon | geo-localization error | that metric is unavailable |
 | sign id | dedupe accuracy | that metric is unavailable |
 
@@ -149,21 +149,22 @@ On top of that, a **leakage guard** uses the `<id>` field: any training frame
 showing a physical sign that also appears in val or test is dropped outright. It
 prints how many frames that cost. The result is a split where no signpost is
 ever both trained on and evaluated on — which a random VOC-style split, including
-the one in `ImageSets/Main/`, does not give you.
+the one in `ImageSets/Main/`, does not provide.
 
-If you want numbers comparable to the paper, run the official `ImageSets` split
-as a second experiment and report both. The gap between them is itself a result.
+For numbers comparable to the paper, convert with `SPLIT_MODE=official` as a
+second experiment; the gap between the two splits is itself a result.
 
 ## Class taxonomy
 
-199 classes with a long tail. The converter keeps the top `TOP_N_CLASSES`
-(default 30). Notebook cell B2 shows what share of annotations that covers and
-how many classes have too few examples to learn. Raise the number if the
-coverage looks poor and your GPU budget allows.
+ARTSv2 as a whole has 199 classes; the `challenging_dom` subset used here has 171,
+with a long tail. The converter keeps the top `TOP_N_CLASSES` (default 50, which
+is what the shipped weights were trained on). Notebook cell B2 shows what share of
+annotations that covers and how many classes have too few examples to learn.
 
-## Local demo without the real data
+## Running locally
 
-`data/demo_sequence/` holds eight synthetic frames for smoke-testing the API and
-UI. They are flat colour rectangles — a fine-tuned model will find nothing in
-them, which is expected. Replace them with the real `demo_sequence.zip` the
-notebook exports.
+The dataset is not redistributed with this repository. With the `challenging_dom`
+folder at `data/arts_v2/`, `scripts/02_convert_arts_to_yolo.py` builds the YOLO
+dataset in `data/arts_yolo/` and `scripts/05_export_sequences.py` rebuilds the
+held-out road sequences in `data/sequences/` and a demo sequence in
+`data/demo_sequence/`. See "Reproducing the results" in the README.

@@ -5,7 +5,7 @@
 # What it does, in order:
 #   1. finds every image + XML pair under ARTS_ROOT
 #   2. auto-detects the real GPS / heading / sign-id tag names in the XML
-#      (no hardcoded guesses -- it reports what it found so you can verify)
+#      and prints what it resolved, for verification
 #   3. groups frames into sequences and splits train/val/test BY GROUP, so
 #      consecutive frames of the same physical sign never straddle a split
 #   4. writes the YOLO dataset, plus meta/frames_meta.json holding camera GPS,
@@ -13,8 +13,14 @@
 #   5. optionally exports one held-out sequence as a ready-to-run demo folder
 #
 # Env overrides:
-#   ARTS_ROOT, OUT_DIR, TOP_N_CLASSES, MAX_SIDE, VAL_RATIO, TEST_RATIO,
+#   ARTS_ROOT       the downloaded ARTSv2 folder (Annotations/, JPEGImages/, ImageSets/)
+#                   default: data/arts_v2
+#   ARTS_YOLO_OUT   where the YOLO dataset is written, default: data/arts_yolo
+#   TOP_N_CLASSES (50), MAX_SIDE, VAL_RATIO, TEST_RATIO, SPLIT_MODE, USE_LOOKUPS,
 #   EXPORT_SEQUENCE=1
+#
+# The defaults reproduce the dataset the shipped weights were trained on. The
+# Colab notebook (cell C1) sets every value explicitly to the same settings.
 
 import os
 import re
@@ -22,18 +28,19 @@ import json
 import random
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
+from pathlib import Path
 
 from PIL import Image
 
-# --- CONFIG ---
-ARTS_ROOT = os.environ.get(
-    "ARTS_ROOT",
-    "/content/drive/MyDrive/traffic-sign-inventory/datasets/arts_v2",
-)
-# Default to Colab LOCAL disk, not Drive. Training off Drive is I/O bound.
-OUT_DIR = os.environ.get("ARTS_YOLO_OUT", "/content/dataset/arts_yolo")
+ROOT = Path(__file__).resolve().parents[1]
 
-TOP_N_CLASSES = int(os.environ.get("TOP_N_CLASSES", "30"))
+# --- CONFIG ---
+ARTS_ROOT = os.environ.get("ARTS_ROOT", str(ROOT / "data" / "arts_v2"))
+# Absolute, because data.yaml records it and YOLO resolves relative paths
+# against its own datasets folder. On Colab, use local disk, not Drive.
+OUT_DIR = os.path.abspath(os.environ.get("ARTS_YOLO_OUT", str(ROOT / "data" / "arts_yolo")))
+
+TOP_N_CLASSES = int(os.environ.get("TOP_N_CLASSES", "50"))
 # ARTSv2 signs are TINY -- a real example is 117x18 px inside a 1920x1080 frame.
 # Downscaling would erase them, so the default keeps the native resolution.
 MAX_SIDE = int(os.environ.get("MAX_SIDE", "1920"))   # 0 = never resize
@@ -165,7 +172,8 @@ print("OUT_DIR   =", OUT_DIR)
 if not os.path.isdir(ARTS_ROOT):
     raise SystemExit(
         f"ARTS_ROOT not found: {ARTS_ROOT}\n"
-        "Download ARTSv2 to Drive first (see scripts/01_download_arts_notes.md)."
+        "Download ARTSv2 (challenging_dom) and point ARTS_ROOT at it, or put it in\n"
+        "data/arts_v2 (see scripts/01_download_arts_notes.md)."
     )
 
 pairs = find_pairs(ARTS_ROOT)
@@ -346,7 +354,7 @@ print("distinct classes:", len(class_counter))
 if parse_errors:
     print("unreadable files skipped:", parse_errors)
 if not frames:
-    raise SystemExit("Nothing parsed. Check <object>/<bndbox>/<name> tags in your XML.")
+    raise SystemExit("Nothing parsed. Check the <object>/<bndbox>/<name> tags in the XML.")
 
 # ---------------------------------------------------------------- STEP 3
 # Assign train/val/test.
@@ -356,7 +364,7 @@ if not frames:
 # SPLIT_MODE=geographic (default) build a geographically disjoint split, so no
 #                       physical sign is both trained on and evaluated on
 #
-# Run both and report both. The gap between them is a real finding.
+# Comparing the two shows how much the official split's leakage inflates scores.
 print("\n--- assigning splits ---")
 rel_dirs = {os.path.relpath(os.path.dirname(f["img_path"]), ARTS_ROOT) for f in frames}
 has_gps = sum(1 for f in frames if f["camera_lat"] is not None)

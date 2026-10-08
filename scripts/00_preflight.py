@@ -71,20 +71,45 @@ else:
             ok(f"best.pt loads: {len(names)} classes, {size_mb:.1f} MB")
             print(f"         first classes: {[names[i] for i in sorted(names)[:6]]}")
             if len(names) == 80:
-                bad("model has 80 classes - this is COCO yolo11n, not your fine-tuned model",
+                bad("model has 80 classes - this is COCO yolo11n, not the fine-tuned model",
                     "download the real best.pt from Drive")
         except Exception as e:
             bad(f"best.pt will not load: {e}", "re-download it")
+
+classifier = ROOT / "weights" / "crop_classifier.pt"
+if not classifier.is_file():
+    warn(f"no crop classifier at {classifier} - the second stage will be skipped",
+         "restore weights/crop_classifier.pt from git")
+else:
+    try:
+        cls_names = YOLO(str(classifier)).names
+        ok(f"crop_classifier.pt loads: {len(cls_names)} classes")
+        if len(cls_names) != 34:
+            warn(f"expected 34 look-alike classes, found {len(cls_names)}")
+    except Exception as e:
+        bad(f"crop_classifier.pt will not load: {e}", "restore it from git")
+
+import pipeline_core
+
+calibration = ROOT / "weights" / "calibration.json"
+if calibration.is_file():
+    cal = pipeline_core.load_calibration(calibration)
+    ok(f"calibration.json: hfov={cal['hfov_deg']:.0f} deg  size_k={cal['size_k_m']:.3f} m  "
+       f"radius={cal['radius_m']:.0f} m")
+else:
+    warn("no weights/calibration.json - using the built-in defaults (80 deg, 0.88 m, 60 m)",
+         "restore it from git, or run scripts/07_batch_evaluate.py to refit it")
 
 print()
 print("=" * 66)
 print("3. Demo sequence")
 print("=" * 66)
-import pipeline_core
 
 seq_dir = os.environ.get("SEQUENCE_DIR", str(ROOT / "data" / "demo_sequence"))
 if not os.path.isdir(seq_dir):
-    bad(f"no sequence directory at {seq_dir}", "unzip demo_sequence.zip there")
+    bad(f"no sequence directory at {seq_dir}",
+        "run scripts/02_convert_arts_to_yolo.py then scripts/05_export_sequences.py "
+        "(or unzip the notebook's demo_sequence.zip there)")
 else:
     frames = pipeline_core.list_frames(seq_dir)
     meta = pipeline_core.load_frames_meta(seq_dir)
@@ -96,7 +121,8 @@ else:
 
     real = [f for f in frames if f not in synthetic]
     if not real:
-        bad("no real frames found", "unzip demo_sequence.zip from Drive into data/demo_sequence/")
+        bad("no real frames found",
+            "run scripts/05_export_sequences.py, or unzip demo_sequence.zip into data/demo_sequence/")
     else:
         ok(f"{len(real)} real frames")
 
@@ -140,7 +166,7 @@ url = os.environ.get("SUPABASE_URL", "")
 key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 configured = bool(url and key and "YOUR_PROJECT" not in url and "your_service" not in key)
 if not configured:
-    warn("Supabase not configured - you can still dry-run with SKIP_UPLOAD=1",
+    warn("Supabase not configured - a dry run still works with SKIP_UPLOAD=1",
          "fill SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env")
 
 print()

@@ -1,0 +1,185 @@
+{
+  "calibration_fraction": 0.4,
+  "sequences": [
+    {
+      "name": "seq_8570_-14512",
+      "role": "calibration",
+      "frames": 30,
+      "sign_ids": 24
+    },
+    {
+      "name": "seq_8578_-14511",
+      "role": "calibration",
+      "frames": 56,
+      "sign_ids": 16
+    },
+    {
+      "name": "seq_8593_-14503",
+      "role": "calibration",
+      "frames": 35,
+      "sign_ids": 9
+    },
+    {
+      "name": "seq_8726_-14468",
+      "role": "calibration",
+      "frames": 28,
+      "sign_ids": 5
+    },
+    {
+      "name": "seq_8730_-14467",
+      "role": "calibration",
+      "frames": 33,
+      "sign_ids": 7
+    },
+    {
+      "name": "seq_8731_-14463",
+      "role": "calibration",
+      "frames": 23,
+      "sign_ids": 12
+    },
+    {
+      "name": "seq_8749_-14452",
+      "role": "calibration",
+      "frames": 33,
+      "sign_ids": 6
+    },
+    {
+      "name": "seq_8762_-14443",
+      "role": "calibration",
+      "frames": 24,
+      "sign_ids": 4
+    },
+    {
+      "name": "seq_8795_-14425",
+      "role": "calibration",
+      "frames": 74,
+      "sign_ids": 15
+    },
+    {
+      "name": "seq_8833_-14417",
+      "role": "calibration",
+      "frames": 25,
+      "sign_ids": 6
+    },
+    {
+      "name": "seq_8835_-14501",
+      "role": "calibration",
+      "frames": 33,
+      "sign_ids": 22
+    },
+    {
+      "name": "seq_8839_-14500",
+      "role": "calibration",
+      "frames": 68,
+      "sign_ids": 32
+    },
+    {
+      "name": "seq_8849_-14510",
+      "role": "evaluation",
+      "frames": 69,
+      "sign_ids": 35
+    },
+    {
+      "name": "seq_8851_-14515",
+      "role": "evaluation",
+      "frames": 23,
+      "sign_ids": 6
+    },
+    {
+      "name": "seq_8851_-14519",
+      "role": "evaluation",
+      "frames": 32,
+      "sign_ids": 15
+    },
+    {
+      "name": "seq_8852_-14516",
+      "role": "evaluation",
+      "frames": 86,
+      "sign_ids": 150
+    },
+    {
+      "name": "seq_8852_-14517",
+      "role": "evaluation",
+      "frames": 39,
+      "sign_ids": 28
+    },
+    {
+      "name": "seq_8853_-14499",
+      "role": "evaluation",
+      "frames": 30,
+      "sign_ids": 3
+    },
+    {
+      "name": "seq_8855_-14488",
+      "role": "evaluation",
+      "frames": 24,
+      "sign_ids": 4
+    },
+    {
+      "name": "seq_8870_-14470",
+      "role": "evaluation",
+      "frames": 28,
+      "sign_ids": 19
+    },
+    {
+      "name": "seq_8884_-14403",
+      "role": "evaluation",
+      "frames": 40,
+      "sign_ids": 38
+    },
+    {
+      "name": "seq_8884_-14404",
+      "role": "evaluation",
+      "frames": 34,
+      "sign_ids": 27
+    },
+    {
+      "name": "seq_8893_-14633",
+      "role": "evaluation",
+      "frames": 24,
+      "sign_ids": 4
+    },
+    {
+      "name": "seq_8894_-14637",
+      "role": "evaluation",
+      "frames": 31,
+      "sign_ids": 13
+    },
+    {
+      "name": "seq_8895_-14640",
+      "role": "evaluation",
+      "frames": 42,
+      "sign_ids": 12
+    },
+    {
+      "name": "seq_8897_-14618",
+      "role": "evaluation",
+      "frames": 29,
+      "sign_ids": 5
+    },
+    {
+      "name": "seq_8897_-14644",
+      "role": "evaluation",
+      "frames": 24,
+      "sign_ids": 16
+    },
+    {
+      "name": "seq_8915_-14519",
+      "role": "evaluation",
+      "frames": 24,
+      "sign_ids": 8
+    },
+    {
+      "name": "seq_8983_-14623",
+      "role": "evaluation",
+      "frames": 23,
+      "sign_ids": 6
+    },
+    {
+      "name": "seq_8987_-14442",
+      "role": "evaluation",
+      "frames": 44,
+      "sign_ids": 62
+    }
+  ]
+}

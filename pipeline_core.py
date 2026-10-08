@@ -1,20 +1,79 @@
-# Shared detection + tracking pipeline.
+# Shared detection, projection, clustering and scoring.
 #
-# Both scripts/03_run_pipeline.py (CLI) and backend/main.py (API) import this,
-# so the two can never drift apart again.
+# scripts/03_run_pipeline.py (CLI), scripts/07_batch_evaluate.py (evaluation)
+# and backend/main.py (API) all import this, so they can never drift apart.
 #
-# Flow: frames -> YOLO track (BoT-SORT) -> keep largest box per track id
-#       -> attach camera GPS -> attach ARTSv2 ground-truth sign GPS (if known)
+# Flow: frames -> YOLO detect -> crop classifier for look-alike families
+#       -> project each box onto the map (heading + box geometry)
+#       -> cluster same-class projections into one row per physical sign
+#
+# Nothing here imports torch or OpenCV at module level, so the geometry and
+# scoring functions can be unit-tested without the ML stack (see tests/).
 
 import os
 import json
 import glob
 import math
 import xml.etree.ElementTree as ET
-
-import cv2
+from collections import defaultdict
 
 IMG_EXTS = [".jpg", ".jpeg", ".png", ".bmp"]
+
+# ---------------------------------------------------------------------------
+# Stored geometry
+#
+# The camera field of view, the width-to-range constant and the clustering
+# radius are fitted by scripts/07_batch_evaluate.py on held-out calibration
+# sequences and written to weights/calibration.json, next to the models they
+# belong with. These defaults are the values of the original run, used only if
+# that file is missing.
+# ---------------------------------------------------------------------------
+
+DEFAULT_CALIBRATION = {"hfov_deg": 80.0, "size_k_m": 0.88, "radius_m": 60.0}
+
+
+def load_calibration(path):
+    """Read weights/calibration.json. Missing or broken keys fall back to
+    DEFAULT_CALIBRATION, so a fresh clone always has usable constants."""
+    cal = dict(DEFAULT_CALIBRATION)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        for key in DEFAULT_CALIBRATION:
+            if data.get(key) is not None:
+                cal[key] = float(data[key])
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
+    return cal
+
+
+def geometry_settings(path, environ=None):
+    """Calibration file values, overridden by HFOV_DEG / SIZE_K / RADIUS_M
+    environment variables when those are set. Returns (hfov, size_k, radius, source)."""
+    environ = os.environ if environ is None else environ
+    cal = load_calibration(path)
+    overridden = [k for k in ("HFOV_DEG", "SIZE_K", "RADIUS_M") if environ.get(k)]
+    hfov = float(environ.get("HFOV_DEG") or cal["hfov_deg"])
+    size_k = float(environ.get("SIZE_K") or cal["size_k_m"])
+    radius = float(environ.get("RADIUS_M") or cal["radius_m"])
+    source = os.path.basename(str(path))
+    if overridden:
+        source += " + env " + ",".join(overridden)
+    return hfov, size_k, radius, source
+
+
+def save_calibration(path, hfov_deg, size_k_m, radius_m, **provenance):
+    """Write the fitted constants plus where they came from."""
+    record = {
+        "hfov_deg": float(hfov_deg),
+        "size_k_m": round(float(size_k_m), 4),
+        "radius_m": float(radius_m),
+    }
+    record.update(provenance)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(record, f, indent=2)
+        f.write("\n")
+    return record
 
 # Tag-name hints used when reading GPS straight out of a VOC-style XML.
 # The converter (scripts/02_convert_arts_to_yolo.py) auto-detects the real names
@@ -318,13 +377,26 @@ def detect_all(model, frames, conf=0.25, imgsz=None, meta=None, keep_crops=True,
     return dets
 
 
-def run_tracking(model, frames, tracker="botsort.yaml", conf=0.25, meta=None, imgsz=None):
+def run_tracking(model, frames, tracker="botsort.yaml", conf=0.25, meta=None, imgsz=None,
+                 stats=None, count_model=None):
     """Track across the frame sequence, keeping only the observation with the
-    largest bounding box for each track id (the clearest view of that sign)."""
+    largest bounding box for each track id (the clearest view of that sign).
+
+    This is the video-tracker BASELINE. Pass a dict as `stats` to receive
+    {"detections": boxes found, "with_id": boxes the tracker gave an identity},
+    which is how the README's tracker comparison is measured.
+
+    `count_model` should be a second, separately loaded copy of the detector.
+    Once a frame has any tracks, Ultralytics keeps only the tracked boxes in
+    the result, so the untracked ones can only be counted by a model that has
+    no tracker attached. Without it, "detections" is a lower bound."""
     meta = meta or {}
     tracks = {}
     if imgsz is None:
         imgsz = training_imgsz(model)
+    if stats is not None:
+        stats.setdefault("detections", 0)
+        stats.setdefault("with_id", 0)
 
     for frame_index, frame_path in enumerate(frames):
         results = model.track(
@@ -338,6 +410,18 @@ def run_tracking(model, frames, tracker="botsort.yaml", conf=0.25, meta=None, im
         if not results:
             continue
         r0 = results[0]
+        if stats is not None:
+            with_id = 0
+            if r0.boxes is not None and r0.boxes.id is not None:
+                with_id = len(r0.boxes.id)
+            if count_model is not None:
+                plain = count_model.predict(source=frame_path, conf=conf, imgsz=imgsz,
+                                            verbose=False)[0]
+                found = 0 if plain.boxes is None else len(plain.boxes)
+            else:
+                found = 0 if r0.boxes is None else len(r0.boxes)
+            stats["detections"] += max(found, with_id)
+            stats["with_id"] += with_id
         if r0.boxes is None or len(r0.boxes) == 0 or r0.boxes.id is None:
             continue
 
@@ -399,8 +483,8 @@ def run_tracking(model, frames, tracker="botsort.yaml", conf=0.25, meta=None, im
 # Video trackers (BoT-SORT, ByteTrack) associate by IoU + Kalman motion, which
 # assumes an object barely moves between frames. ARTSv2 is 1 Hz: the camera
 # advances ~8 m per frame, IoU between consecutive views of the same sign is
-# zero, and tracks never activate -- measured, only 8 of 95 detections ever got
-# an id.
+# zero, and tracks rarely activate -- on the 69-frame demo sequence BoT-SORT gave
+# an id to 8 of 103 detections and ByteTrack to 7 of 103.
 #
 # Instead we put every detection on the map and cluster there. Camera GPS and
 # heading are known; the box's horizontal offset gives the bearing to the sign;
@@ -499,8 +583,9 @@ def calibrate_geometry(dets, hfov_grid=tuple(range(40, 145, 5))):
     return hfov, size_k, len(usable)
 
 
-def associate_geometric(dets, hfov_deg=60.0, size_k=0.7, radius_m=60.0,
-                        radius_frac=0.0):
+def associate_geometric(dets, hfov_deg=DEFAULT_CALIBRATION["hfov_deg"],
+                        size_k=DEFAULT_CALIBRATION["size_k_m"],
+                        radius_m=DEFAULT_CALIBRATION["radius_m"], radius_frac=0.0):
     """Cluster detections into physical signs by projected world position.
 
     Same class + within tolerance of an existing cluster => same signpost.
@@ -561,6 +646,7 @@ def associate_geometric(dets, hfov_deg=60.0, size_k=0.7, radius_m=60.0,
 
 
 def save_crops(tracks, out_dir, seq_name):
+    import cv2  # imported here so the rest of the module needs no OpenCV
     os.makedirs(out_dir, exist_ok=True)
     for tid, info in tracks.items():
         crop = info.get("crop")
@@ -646,3 +732,115 @@ def upload_and_insert(supabase, tracks, seq_name, upload_frames=True):
         ).execute()
         inserted.append(res.data)
     return inserted
+
+
+# ---------------------------------------------------------------------------
+# Scoring against ARTSv2 ground truth
+#
+# Shared by scripts/06_evaluate_geo_and_dedupe.py (one sequence) and
+# scripts/07_batch_evaluate.py (many), so both compute every metric the same way.
+# ---------------------------------------------------------------------------
+
+def percentile(values, p):
+    """Linear-interpolated percentile, p in [0, 1]. None for an empty list."""
+    if not values:
+        return None
+    s = sorted(values)
+    k = (len(s) - 1) * p
+    lo, hi = math.floor(k), math.ceil(k)
+    return s[int(k)] if lo == hi else s[lo] + (s[hi] - s[lo]) * (k - lo)
+
+
+def canonical_gt_map(meta, tol_m=2.0):
+    """Collapse ground-truth ids that describe the same physical post.
+
+    ARTSv2's <id> is not a clean physical-sign key: some entries appear twice
+    with a numeric prefix at IDENTICAL coordinates, and sign assemblies put
+    several plaques on one post. Scoring against raw ids asks the system to
+    separate signs no geometric method could, so ids of the same class within
+    tol_m metres are treated as one post. Returns {raw_id: canonical_id}."""
+    signs = {}
+    for m in meta.values():
+        for o in m.get("objects", []):
+            gid = o.get("sign_id")
+            if gid and o.get("sign_lat") is not None:
+                signs[str(gid)] = (o["name"], o["sign_lat"], o["sign_lon"])
+
+    canon, mapping = [], {}
+    for gid, (name, lat, lon) in sorted(signs.items()):
+        hit = None
+        for c in canon:
+            if c["name"] == name and haversine_m(c["lat"], c["lon"], lat, lon) <= tol_m:
+                hit = c
+                break
+        if hit is None:
+            canon.append({"name": name, "lat": lat, "lon": lon, "id": gid})
+            mapping[gid] = gid
+        else:
+            mapping[gid] = hit["id"]
+    return mapping
+
+
+def score_rows(rows, meta, canon=None, tol_m=2.0):
+    """Score one sequence's inventory rows against its ground truth.
+
+    rows: {track_id: row} from associate_geometric, or a list of rows loaded
+    from data/pipeline_result_*.json.
+
+    Every detection inside every row counts towards "found", including rows
+    whose anchor (widest box) matched no labelled sign. Position error is
+    measured only for rows whose anchor did match, because that is the sign
+    the row's position stands for."""
+    rows = list(rows.values()) if isinstance(rows, dict) else list(rows)
+    if canon is None:
+        canon = canonical_gt_map(meta, tol_m)
+    raw_ids = {str(o["sign_id"]) for m in meta.values()
+               for o in m.get("objects", []) if o.get("sign_id")}
+    posts = {canon.get(g, g) for g in raw_ids}
+
+    errors, baseline = [], []
+    by_gt, by_row = defaultdict(set), defaultdict(set)
+    for i, t in enumerate(rows):
+        rid = t.get("track_id", i)
+        if (t.get("gt_sign_lat") is not None and t.get("lat") is not None
+                and t.get("gps_source") != "synthetic_demo"):
+            errors.append(haversine_m(t["lat"], t["lon"], t["gt_sign_lat"], t["gt_sign_lon"]))
+            if t.get("camera_lat") is not None:
+                baseline.append(haversine_m(t["camera_lat"], t["camera_lon"],
+                                            t["gt_sign_lat"], t["gt_sign_lon"]))
+        ids = t.get("member_gt_ids") or ([t["gt_sign_id"]] if t.get("gt_sign_id") else [])
+        for gid in ids:
+            gid = canon.get(str(gid), str(gid))
+            by_gt[gid].add(rid)
+            by_row[rid].add(gid)
+
+    fragmented = sum(1 for v in by_gt.values() if len(v) > 1)
+    merged = sum(1 for v in by_row.values() if len(v) > 1)
+    # strict one-to-one: the post has exactly one row AND that row holds only it
+    one_to_one = sum(1 for v in by_gt.values()
+                     if len(v) == 1 and len(by_row[next(iter(v))]) == 1)
+    return {
+        "raw_ids": len(raw_ids), "posts": len(posts), "rows": len(rows),
+        "found": len(by_gt), "fragmented": fragmented, "merged": merged,
+        "one_to_one": one_to_one, "errors": errors, "baseline": baseline,
+    }
+
+
+def pool_scores(scores):
+    """Sum per-sequence scores (from score_rows) and derive the headline rates:
+    recall = found / posts
+    dedupe = (found - fragmented - merged) / found
+    precision/recall/F1 of the strict one-to-one match."""
+    keys = ("raw_ids", "posts", "rows", "found", "fragmented", "merged", "one_to_one")
+    total = {k: sum(s[k] for s in scores) for k in keys}
+    total["errors"] = [e for s in scores for e in s["errors"]]
+    total["baseline"] = [b for s in scores for b in s["baseline"]]
+    posts, found, rows = total["posts"], total["found"], total["rows"]
+    total["recall"] = found / posts if posts else 0.0
+    total["dedupe"] = (found - total["fragmented"] - total["merged"]) / found if found else 0.0
+    p = total["one_to_one"] / rows if rows else 0.0
+    r = total["one_to_one"] / posts if posts else 0.0
+    total["precision_1to1"] = p
+    total["recall_1to1"] = r
+    total["f1_1to1"] = (2 * p * r / (p + r)) if (p + r) else 0.0
+    return total

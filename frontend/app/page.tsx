@@ -39,7 +39,8 @@ type Sign = {
 // Anything that is not a measured fix must be visibly labelled, so a demo point
 // is never mistaken for a real detection.
 const GPS_LABELS: Record<string, { text: string; real: boolean }> = {
-  geo_projected: { text: "Triangulated sign position", real: true },
+  // projected from the widest view (bearing + range), not triangulated
+  geo_projected: { text: "Projected sign position (single view)", real: true },
   frames_meta: { text: "Camera GPS (dataset)", real: true },
   xml: { text: "Camera GPS (XML)", real: true },
   gps_sidecar: { text: "Camera GPS (sidecar)", real: true },

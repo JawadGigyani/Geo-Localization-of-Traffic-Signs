@@ -1,7 +1,13 @@
-# Local machine (runs the API + pipeline, not training).
+# Local machine (runs the pipeline, the evaluation and the API, not training).
 # Do NOT add opencv-python-headless here: ultralytics installs opencv-python,
 # and having both in one environment breaks the cv2 import.
-ultralytics>=8.3.0
+#
+# ultralytics and torch are pinned to the versions that produced the reported
+# results (notebook outputs: Ultralytics 8.4.120, PyTorch 2.11.0, Python 3.12).
+# Every results/*.json file also records the versions it was produced with.
+# Without a GPU, install the CPU build of torch first (see README).
+ultralytics==8.4.120
+torch==2.11.0
 lap>=0.5.12          # Hungarian solver used by BoT-SORT/ByteTrack; ultralytics
                      # auto-installs it mid-run otherwise, which breaks tracking
 pillow>=10.0.0
@@ -14,6 +20,3 @@ uvicorn[standard]>=0.27.0
 python-multipart>=0.0.9
 pyyaml>=6.0
 tqdm>=4.66.0
-
-# Optional, only for scripts/09b_depth_project.py (run it on Colab, not locally)
-# transformers>=4.45.0

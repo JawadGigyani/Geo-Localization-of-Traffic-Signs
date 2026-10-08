@@ -1,8 +1,9 @@
 """
 FastAPI backend for the Traffic Sign Inventory.
 
-Detection/tracking logic is NOT duplicated here -- it comes from pipeline_core,
-the same module scripts/03_run_pipeline.py uses.
+Detection, classification, projection and clustering are NOT duplicated here --
+they come from pipeline_core, the same module scripts/03_run_pipeline.py uses,
+with the same settings (weights, crop classifier, weights/calibration.json).
 
 Run from the project root:
     uvicorn backend.main:app --reload --port 8000
@@ -31,6 +32,12 @@ FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
 CONF = float(os.environ.get("CONF", "0.25"))
 TRACKER = os.environ.get("TRACKER", "botsort.yaml")
 ALLOW_SYNTHETIC_GPS = os.environ.get("ALLOW_SYNTHETIC_GPS", "0") == "1"
+CLS_WEIGHTS = os.environ.get("CLS_WEIGHTS", str(ROOT / "weights" / "crop_classifier.pt"))
+CLS_MIN_CONF = float(os.environ.get("CLS_MIN_CONF", "0.8"))
+# "geometric" is the real pipeline; "tracker" is the BoT-SORT baseline.
+ASSOCIATION = os.environ.get("ASSOCIATION", "geometric").strip().lower()
+CALIBRATION_PATH = os.environ.get("CALIBRATION_PATH", str(ROOT / "weights" / "calibration.json"))
+HFOV, SIZE_K, RADIUS_M, GEOMETRY_SOURCE = pipeline_core.geometry_settings(CALIBRATION_PATH)
 
 app = FastAPI(title="Traffic Sign Inventory API")
 app.add_middleware(
@@ -48,6 +55,17 @@ model = YOLO(_weights)
 IMGSZ = int(os.environ.get("IMGSZ", "0")) or pipeline_core.training_imgsz(model)
 print("Loaded weights:", _weights, "(fine-tuned)" if _using_finetuned else "(COCO fallback)")
 print("Inference imgsz:", IMGSZ)
+
+# Second stage, exactly as in scripts/03_run_pipeline.py.
+cls_model, families = None, None
+if CLS_WEIGHTS.lower() != "none" and os.path.isfile(CLS_WEIGHTS):
+    cls_model = YOLO(CLS_WEIGHTS)
+    families = pipeline_core.build_families(list(model.names.values()))
+    print(f"Crop classifier: {os.path.basename(CLS_WEIGHTS)} over {len(families)} families")
+else:
+    print("Crop classifier: disabled")
+print(f"Geometry: hfov={HFOV:.0f} deg  size_k={SIZE_K:.3f} m  radius={RADIUS_M:.0f} m "
+      f"(from {GEOMETRY_SOURCE});  association: {ASSOCIATION}")
 
 supabase = None
 if SUPABASE_URL and SUPABASE_KEY and "YOUR_PROJECT" not in SUPABASE_URL:
@@ -69,6 +87,9 @@ def health():
         "ok": True,
         "weights": _weights,
         "fine_tuned": _using_finetuned,
+        "classifier": cls_model is not None,
+        "association": ASSOCIATION,
+        "geometry": {"hfov_deg": HFOV, "size_k_m": SIZE_K, "radius_m": RADIUS_M},
         "supabase": supabase is not None,
     }
 
@@ -144,9 +165,22 @@ def run_pipeline(body: PipelineBody):
         raise HTTPException(400, "No images in sequence_dir")
 
     meta = pipeline_core.load_frames_meta(sequence_dir)
-    tracks = pipeline_core.run_tracking(
-        model, frames, tracker=TRACKER, conf=CONF, meta=meta, imgsz=IMGSZ
-    )
+    detections = None
+    if ASSOCIATION == "tracker":
+        # Baseline only: fails on 1 Hz imagery and places rows at the camera.
+        tracks = pipeline_core.run_tracking(
+            model, frames, tracker=TRACKER, conf=CONF, meta=meta, imgsz=IMGSZ
+        )
+    else:
+        # The real pipeline: detect, re-read look-alikes, project, cluster.
+        dets = pipeline_core.detect_all(
+            model, frames, conf=CONF, imgsz=IMGSZ, meta=meta,
+            cls_model=cls_model, families=families, cls_min_conf=CLS_MIN_CONF,
+        )
+        detections = len(dets)
+        tracks = pipeline_core.associate_geometric(
+            dets, hfov_deg=HFOV, size_k=SIZE_K, radius_m=RADIUS_M
+        )
 
     synthetic = 0
     if ALLOW_SYNTHETIC_GPS:
@@ -161,7 +195,9 @@ def run_pipeline(body: PipelineBody):
 
     payload = {
         "ok": True,
+        "association": ASSOCIATION,
         "frames": len(frames),
+        "detections": detections,
         "tracks": len(tracks),
         "gps_sources": gps_sources,
         "synthetic_gps_applied": synthetic,

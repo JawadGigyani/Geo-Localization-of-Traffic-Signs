@@ -1,0 +1,8 @@
+{
+  "hfov_deg": 80.0,
+  "size_k_m": 0.8807,
+  "radius_m": 60.0,
+  "fitted_by": "scripts/07_batch_evaluate.py",
+  "calibration_sequences": 12,
+  "matched_detections": 771
+}
