@@ -41,8 +41,8 @@ ALLOW_SYNTHETIC_GPS = os.environ.get("ALLOW_SYNTHETIC_GPS", "0") == "1"
 CONF = float(os.environ.get("CONF", "0.25"))
 TRACKER = os.environ.get("TRACKER", "botsort.yaml")
 
-# "geometric" projects each detection onto the map and clusters there -- the
-# only thing that works at 1 Hz. "tracker" is the BoT-SORT baseline.
+# "geometric" projects each detection onto the map and clusters there, which works
+# however far apart the photos are. "tracker" is the BoT-SORT baseline.
 ASSOCIATION = os.environ.get("ASSOCIATION", "geometric").strip().lower()
 CALIBRATION_PATH = os.environ.get("CALIBRATION_PATH", str(ROOT / "weights" / "calibration.json"))
 HFOV, SIZE_K, RADIUS_M, GEOMETRY_SOURCE = pipeline_core.geometry_settings(CALIBRATION_PATH)
@@ -79,8 +79,8 @@ print("IMGSZ        =", IMGSZ, "(must match training resolution)")
 print("ASSOCIATION  =", ASSOCIATION)
 
 if ASSOCIATION == "tracker":
-    # Baseline. Fails on 1 Hz imagery: the camera moves ~8 m between frames, so
-    # IoU-based association never confirms a track. Kept for comparison.
+    # Baseline. Photos are a median 8.1 m apart, so IoU-based association rarely
+    # confirms a track (8 of 103 detections on the demo sequence). Kept for comparison.
     # A second copy of the detector counts every box, tracked or not.
     stats = {}
     tracks = pipeline_core.run_tracking(

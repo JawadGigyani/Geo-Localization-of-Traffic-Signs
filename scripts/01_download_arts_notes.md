@@ -11,9 +11,9 @@ VaiL group at the University of Vermont.
   (Remote Sensing, 2022): ~25,544 images, ~47,589 annotations, 199 classes aligned
   with the Vermont VCI sign catalog. Each annotation carries the sign's class,
   GPS, an assembly flag, sign side (left / right / other), and an integer sign id.
-- Images come from road video logs, so consecutive frames are roughly a second
-  apart and show the same physical signs repeatedly. **This is why the split must
-  be by sequence.**
+- Images come from road survey logs, so consecutive frames are only metres apart
+  (a median 8.1 m on the demo sequence) and show the same physical signs
+  repeatedly. **This is why the split must be by sequence.**
 
 ## Links (checked 13 Aug 2026)
 
@@ -143,7 +143,7 @@ arts_v2/
 ARTSv2 uses the flat VOC layout, so the converter falls back to a **geographic
 split**: frames are tiled into ~500 m cells by camera GPS and whole tiles go to
 train / val / test. That is a stronger hold-out than a random image split, since
-consecutive frames roughly a second apart stay together.
+consecutive frames a few metres apart stay together.
 
 On top of that, a **leakage guard** uses the `<id>` field: any training frame
 showing a physical sign that also appears in val or test is dropped outright. It

@@ -64,7 +64,8 @@ class GeometryTests(unittest.TestCase):
         self.assertAlmostEqual(pc.focal_px(1920, 80), 1144.1, delta=0.05)
 
     def test_project_detection_worked_example(self):
-        # The README / guide example: box 1500-1560 px, heading 90 deg (east).
+        # The worked example in the README (How it works): box 1500-1560 px,
+        # heading 90 deg (east).
         det = {"camera_lat": CAMERA[0], "camera_lon": CAMERA[1], "heading": 90.0,
                "box": [1500.0, 400.0, 1560.0, 460.0], "image_width": 1920.0}
         p = pc.project_detection(det, 80.0, 0.88)

@@ -1,0 +1,74 @@
+{
+  "sequence": "demo_sequence",
+  "frames": 69,
+  "photo_spacing_m": {
+    "gaps": 68,
+    "median": 8.08,
+    "p10": 7.85,
+    "p90": 132.75
+  },
+  "camera_fit": {
+    "stored_held_out": {
+      "hfov_deg": 80.0,
+      "size_k_m": 0.8807,
+      "radius_m": 60.0
+    },
+    "this_sequence_in_sample": {
+      "hfov_deg": 95,
+      "size_k_m": 0.882,
+      "matches": 98
+    }
+  },
+  "position_error_m": {
+    "scored_rows": 21,
+    "median": 3.02,
+    "median_along_line_of_sight": 2.26,
+    "median_across_line_of_sight": 1.07,
+    "mean_along_line_of_sight": 3.5,
+    "mean_across_line_of_sight": 1.4
+  },
+  "association_baselines": {
+    "botsort": {
+      "detections": 103,
+      "with_identity": 8,
+      "tracks": 8
+    },
+    "bytetrack": {
+      "detections": 103,
+      "with_identity": 7,
+      "tracks": 6
+    },
+    "position_clustering": {
+      "detections": 103,
+      "with_identity": 103,
+      "tracks": 22
+    }
+  },
+  "ground_truth_merges": {
+    "canon_m": 2.0,
+    "ids": 35,
+    "posts": 32,
+    "merged_ids": 3,
+    "max_merge_distance_m": 0.0,
+    "merged_ids_in_same_photos_as_their_post": 2,
+    "examples": [
+      [
+        "1_D1-1_44.24614087735695_-72.54904963735216",
+        "0_D1-1_44.24614087735695_-72.54904963735216"
+      ],
+      [
+        "1_R3-9_44.244086873457725_-72.5473246291577",
+        "0_R3-9_44.244086873457725_-72.5473246291577"
+      ],
+      [
+        "R3-9_44.244086873457725_-72.5473246291577",
+        "0_R3-9_44.244086873457725_-72.5473246291577"
+      ]
+    ]
+  },
+  "versions": {
+    "python": "3.13.9",
+    "ultralytics": "8.4.120",
+    "torch": "2.11.0+cpu"
+  }
+}

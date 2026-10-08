@@ -167,7 +167,7 @@ def run_pipeline(body: PipelineBody):
     meta = pipeline_core.load_frames_meta(sequence_dir)
     detections = None
     if ASSOCIATION == "tracker":
-        # Baseline only: fails on 1 Hz imagery and places rows at the camera.
+        # Baseline only: rarely confirms tracks on this data and places rows at the camera.
         tracks = pipeline_core.run_tracking(
             model, frames, tracker=TRACKER, conf=CONF, meta=meta, imgsz=IMGSZ
         )

@@ -481,8 +481,8 @@ def run_tracking(model, frames, tracker="botsort.yaml", conf=0.25, meta=None, im
 # Geometric association
 #
 # Video trackers (BoT-SORT, ByteTrack) associate by IoU + Kalman motion, which
-# assumes an object barely moves between frames. ARTSv2 is 1 Hz: the camera
-# advances ~8 m per frame, IoU between consecutive views of the same sign is
+# assumes an object barely moves between frames. ARTSv2 photos are a median
+# 8.1 m apart (demo sequence), so IoU between consecutive views of the same sign is
 # zero, and tracks rarely activate -- on the 69-frame demo sequence BoT-SORT gave
 # an id to 8 of 103 detections and ByteTrack to 7 of 103.
 #
@@ -544,8 +544,9 @@ def calibrate_geometry(dets, hfov_grid=tuple(range(40, 145, 5))):
     """Fit hfov and size_k from detections matched to ground-truth sign GPS.
 
     For each matched detection the true bearing and true range are computable
-    from camera and sign coordinates, so both constants come out of a least
-    squares fit rather than a guess. Returns (hfov, size_k, n_used)."""
+    from camera and sign coordinates. hfov comes from a grid search that
+    minimises the squared bearing error, size_k from least squares through the
+    origin. Returns (hfov, size_k, n_used)."""
     usable = [d for d in dets
               if d.get("gt_sign_lat") is not None and d.get("camera_lat") is not None
               and d.get("heading") is not None]
